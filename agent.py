@@ -39,7 +39,6 @@ class Agent:
         terminal = Variable(terminal).cuda()
         reward = torch.from_numpy(reward).float()
         reward = Variable(reward).cuda()
-        pdb.set_trace()
         y = (reward + torch.mul((self.target_network.forward(state_new).max(dim=1)[0]*terminal), self.DISCOUNT_FACTOR))
         Q = (self.Q_network.forward(state)*action).sum(dim=1)
         loss = mse_loss(input=Q, target=y.detach())
