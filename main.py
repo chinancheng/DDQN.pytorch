@@ -22,7 +22,7 @@ UPDATE_EPLISON_FREQUENCY = 100
 SAVE_MODEL_FREQUENCY = 1000
 SAVE_FILM_FREQUENCY = 500
 BATCH_SIZE = 32
-INITIAL_EPISODE = 50
+INITIAL_EPISODE = 100
 agent = Agent(ACTION_SET)
 
 reply_buffer = deque()
@@ -49,7 +49,7 @@ for episode in range(NUM_EPISODE):
         if reward == 0:
             reward = 0.1
         elif reward == 1:
-            print('FLY')
+            print('FLY through the pipe')
         obs = p.getScreenGrayscale()
         if episode % SAVE_FILM_FREQUENCY == 0 and episode > INITIAL_EPISODE: 
             frames.append(p.getScreenRGB()) 

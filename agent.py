@@ -6,26 +6,27 @@ import torch.optim as optim
 import random
 import numpy as np
 import pdb
+import glob
 import os
 
 class Agent:
-    def __init__(self, ACTION_SET, DISCOUNT_FACTOR=0.99, LEARNING_RATE=0.001):
+    def __init__(self, ACTION_SET, DISCOUNT_FACTOR=0.99, LEARNING_RATE=0.0001):
         self.ACTION_SET = ACTION_SET
         self.ACTION_NUM = len(ACTION_SET)
         self.DISCOUNT_FACTOR = DISCOUNT_FACTOR
         self.LEARNING_RATE = LEARNING_RATE
         self.EPLISON = 0.1
         self.PATH = './logs'
-        self.bset_reward = 0
+        self.best_reward = -100
         self.build_network()
 
     def build_network(self):
         self.Q_network = Model(self.ACTION_NUM).cuda()
-        self.target_network = self.Q_network
+        self.target_network = Model(self.ACTION_NUM).cuda()
         self.optimizer = optim.Adam(self.Q_network.parameters(), lr=self.LEARNING_RATE)
     
     def update_target_network(self):
-        self.target_network = self.Q_network
+        self.target_network.load_state_dict(self.Q_network.state_dict())
     
     def update_Q_network(self, state, action, reward, state_new, terminal):
         state = torch.from_numpy(state).float()
@@ -38,6 +39,7 @@ class Agent:
         terminal = Variable(terminal).cuda()
         reward = torch.from_numpy(reward).float()
         reward = Variable(reward).cuda()
+        pdb.set_trace()
         y = (reward + torch.mul((self.target_network.forward(state_new).max(dim=1)[0]*terminal), self.DISCOUNT_FACTOR))
         Q = (self.Q_network.forward(state)*action).sum(dim=1)
         loss = mse_loss(input=Q, target=y.detach())
@@ -56,7 +58,7 @@ class Agent:
             return self.target_network.forward(state).max(dim=1)[1].data[0]
     
     def update_eplison(self):
-        if self.EPLISON > 0.0001:
+        if self.EPLISON > 0.001:
             self.EPLISON = self.EPLISON*0.9
     
     def stop_eplison(self):
@@ -68,7 +70,8 @@ class Agent:
     
     def save_model(self, episode, reward):
         if reward > self.best_reward:
-            os.remove(os.path.join(self.PATH, '*'))
+            for li in glob.glob(os.path.join(self.PATH, '*.pth')):
+                os.remove(li)
             model_path = os.path.join(self.PATH, 'model-{}.pth' .format(episode))
             self.Q_network.save(model_path, step=episode, optimizer=self.optimizer)
     
