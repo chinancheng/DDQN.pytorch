@@ -30,12 +30,13 @@ initial_state = np.stack([[obs for _ in range(4)]], axis=0)
 
 for episode in range(1, Config.total_episode+1):
     
-    # reset 
+    # reset env
     t = 0
     total_reward = 0
     total_estimate = 0
     env.reset_game()
     state = initial_state
+
     if episode % Config.save_film_frequency == 0 and episode > Config.initial_observe_episode: 
         agent.stop_epsilon()
         frames = [env.getScreenRGB()] 
@@ -43,6 +44,7 @@ for episode in range(1, Config.total_episode+1):
     while not env.game_over():
         action, estimate = agent.take_action(state)
         reward = env.act(action_set[action])
+        # soft reward for alive (0.1)
         if reward == 0:
             reward = 0.1
         elif reward == 1:
@@ -52,12 +54,12 @@ for episode in range(1, Config.total_episode+1):
         obs = resize(env.getScreenGrayscale())
         obs = np.reshape(obs, [1, 1, obs.shape[0], obs.shape[1]])
         state_new = np.append(state[:, 1:,...], obs, axis=1)
-        action_matrix = np.zeros(len(action_set))
-        action_matrix[action] = 1
+        action_onehot = np.zeros(len(action_set))
+        action_onehot[action] = 1
         t += 1
         total_reward += reward
         total_estimate += estimate
-        reply_buffer.append((state, action_matrix, reward, state_new, env.game_over()))
+        reply_buffer.append((state, action_onehot, reward, state_new, env.game_over()))
         state = state_new
     if episode > Config.initial_observe_episode:
         if episode % Config.save_model_frequency == 0:
@@ -67,6 +69,7 @@ for episode in range(1, Config.total_episode+1):
             np.save(os.path.join(logs_path, 'estimate.npy'), np.array(estimate_logs))
         
         if episode % Config.save_film_frequency == 0:  
+            os.makedirs(video_path, exist_ok=True)
             clip = make_anim(frames, fps=60, true_image=True).rotate(-90)
             clip.write_videofile(os.path.join(video_path, 'env_{}.mp4'.format(episode)), fps=60)
             agent.restore_epsilon()

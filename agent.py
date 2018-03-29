@@ -3,8 +3,6 @@ from torch.nn.functional import mse_loss
 from torch.autograd import Variable
 import torch.optim as optim
 import random
-import numpy as np
-import pdb
 import glob
 import os
 from config import Config
@@ -24,6 +22,7 @@ class Agent:
         self.optimizer = optim.Adam(self.Q_network.parameters(), lr=Config.lr)
     
     def update_target_network(self):
+        # copy current_network to target network
         self.target_network.load_state_dict(self.Q_network.state_dict())
     
     def update_Q_network(self, state, action, reward, state_new, terminal):
@@ -38,9 +37,19 @@ class Agent:
         terminal = Variable(terminal).cuda()
         reward = Variable(reward).cuda()
         
+        # calculate y 
+        self.Q_network.eval()
         self.target_network.eval()
-        y = (reward + torch.mul((self.target_network.forward(state_new).max(dim=1)[0]*terminal), Config.discount_factor))
         
+        # use current network to evaluate action argmax Q_current(s', a')_
+        action_new = self.Q_network.forward(state_new).max(dim=1)[1].cpu().data.view(-1, 1)
+        action_new_onehot = torch.zeros(Config.batch_size, self.action_number)
+        action_new_onehot = Variable(action_new_onehot.scatter_(1, action_new, 1.0)).cuda()
+        
+        # use target network to evaluate value y = r + discount_factor * Q_tar(s', a')
+        y = (reward + torch.mul(((self.target_network.forward(state_new)*action_new_onehot).sum(dim=1)*terminal), Config.discount_factor))
+        
+        # regression Q(s, a) -> y
         self.Q_network.train()
         Q = (self.Q_network.forward(state)*action).sum(dim=1)
         loss = mse_loss(input=Q, target=y.detach())
@@ -58,6 +67,7 @@ class Agent:
         self.Q_network.eval()
         estimate = self.Q_network.forward(state).max(dim=1)
         
+        # with epsilon prob to choose random action else choose argmax Q estimate action
         if random.random() < self.epsilon:
             return random.randint(0, self.action_number-1), estimate[0].data[0]
         else:
