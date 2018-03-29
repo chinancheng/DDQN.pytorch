@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from torch.nn.functional import mse_loss
 from torch.autograd import Variable
 import torch.optim as optim
@@ -8,40 +7,44 @@ import numpy as np
 import pdb
 import glob
 import os
+from config import Config
+from model import Model
 
 class Agent:
-    def __init__(self, ACTION_SET, DISCOUNT_FACTOR=0.99, LEARNING_RATE=0.0001):
-        self.ACTION_SET = ACTION_SET
-        self.ACTION_NUM = len(ACTION_SET)
-        self.DISCOUNT_FACTOR = DISCOUNT_FACTOR
-        self.LEARNING_RATE = LEARNING_RATE
-        self.EPLISON = 0.1
-        self.PATH = './logs'
+    def __init__(self, action_set):
+        self.action_set = action_set
+        self.action_number = len(action_set)
+        self.epsilon = Config.initial_epsilon
         self.best_reward = -100
         self.build_network()
 
     def build_network(self):
-        self.Q_network = Model(self.ACTION_NUM).cuda()
-        self.target_network = Model(self.ACTION_NUM).cuda()
-        self.optimizer = optim.Adam(self.Q_network.parameters(), lr=self.LEARNING_RATE)
+        self.Q_network = Model(self.action_number).cuda()
+        self.target_network = Model(self.action_number).cuda()
+        self.optimizer = optim.Adam(self.Q_network.parameters(), lr=Config.lr)
     
     def update_target_network(self):
         self.target_network.load_state_dict(self.Q_network.state_dict())
     
     def update_Q_network(self, state, action, reward, state_new, terminal):
         state = torch.from_numpy(state).float()
-        state = Variable(state).cuda()
         action = torch.from_numpy(action).float()
-        action = Variable(action).cuda()
         state_new = torch.from_numpy(state_new).float()
-        state_new = Variable(state_new).cuda()
         terminal = torch.from_numpy(terminal).float()
-        terminal = Variable(terminal).cuda()
         reward = torch.from_numpy(reward).float()
+        state = Variable(state).cuda()
+        action = Variable(action).cuda()
+        state_new = Variable(state_new).cuda()
+        terminal = Variable(terminal).cuda()
         reward = Variable(reward).cuda()
-        y = (reward + torch.mul((self.target_network.forward(state_new).max(dim=1)[0]*terminal), self.DISCOUNT_FACTOR))
+        
+        self.target_network.eval()
+        y = (reward + torch.mul((self.target_network.forward(state_new).max(dim=1)[0]*terminal), Config.discount_factor))
+        
+        self.Q_network.train()
         Q = (self.Q_network.forward(state)*action).sum(dim=1)
         loss = mse_loss(input=Q, target=y.detach())
+        
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -51,66 +54,33 @@ class Agent:
     def take_action(self, state):
         state = torch.from_numpy(state).float()/255.0
         state = Variable(state).cuda()
-        if random.random() < self.EPLISON:
-            return random.randint(0, self.ACTION_NUM-1)
+        
+        self.Q_network.eval()
+        estimate = self.Q_network.forward(state).max(dim=1)
+        
+        if random.random() < self.epsilon:
+            return random.randint(0, self.action_number-1), estimate[0].data[0]
         else:
-            return self.target_network.forward(state).max(dim=1)[1].data[0]
+            return estimate[1].data[0], estimate[0].data[0]
     
-    def update_eplison(self):
-        if self.EPLISON > 0.001:
-            self.EPLISON = self.EPLISON*0.9
+    def update_epsilon(self):
+        if self.epsilon > Config.min_epsilon:
+            self.epsilon = self.epsilon*Config.epsilon_discount_rate
     
-    def stop_eplison(self):
-        self.EPLISON_tmp = self.EPLISON        
-        self.EPLISON = 0        
+    def stop_epsilon(self):
+        self.epsilon_tmp = self.epsilon        
+        self.epsilon = 0        
     
-    def restore_eplison(self):
-        self.EPLISON = self.EPLISON_tmp        
+    def restore_epsilon(self):
+        self.epsilon = self.epsilon_tmp        
     
-    def save_model(self, episode, reward):
+    def save_model(self, episode, reward, logs_path):
         if reward > self.best_reward:
-            for li in glob.glob(os.path.join(self.PATH, '*.pth')):
+            os.makedirs(logs_path, exist_ok=True)
+            for li in glob.glob(os.path.join(logs_path, '*.pth')):
                 os.remove(li)
-            model_path = os.path.join(self.PATH, 'model-{}.pth' .format(episode))
+            model_path = os.path.join(logs_path, 'model-{}.pth' .format(episode))
             self.Q_network.save(model_path, step=episode, optimizer=self.optimizer)
-    
-class Model(nn.Module):
-    
-    def __init__(self, ACTION_NUM):
-        super().__init__()
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels=4, out_channels=32, kernel_size=(8, 8), stride=4, padding=3),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=2))
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(4, 4), stride=2, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=2, padding=1))
-        self.conv3 = nn.Sequential(
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), stride=1, padding=2),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=2))
-        self.fc1 = nn.Sequential(
-            nn.Linear(in_features=256, out_features=256),
-            nn.ReLU())
-        self.fc2 = nn.Linear(in_features=256, out_features=ACTION_NUM)
-    
-    def forward(self, observation):
-        out1 = self.conv1(observation)        
-        out2 = self.conv2(out1)        
-        out3 = self.conv3(out2)
-        out4 = self.fc1(out3.view(-1, 256))        
-        out = self.fc2(out4)
-        
-        return out
-    
-    def save(self, path, step, optimizer):
-        torch.save({
-            'step': step,
-            'state_dict': self.state_dict(),
-            'optimizer': optimizer.state_dict()
-        }, path)
-        print('Save {}' .format(path))
-            
-            
-        
+            self.best_reward = reward 
+
+
