@@ -95,11 +95,10 @@ class Agent:
             print('=> Save {}' .format(logs_path)) 
 
     def restore(self, logs_path):
-        episode = self.Q_network.load(logs_path)
-        _ = self.target_network.load(logs_path)
+        self.Q_network.load(logs_path)
+        self.target_network.load(logs_path)
         print('=> Restore {}' .format(logs_path)) 
         
-        return episode
 
         
     

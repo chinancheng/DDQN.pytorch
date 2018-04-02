@@ -42,5 +42,4 @@ class Model(nn.Module):
         if optimizer is not None:
             optimizer.load_state_dict(checkpoint['optimizer'])
         
-        return step            
         

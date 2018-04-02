@@ -53,9 +53,7 @@ def main():
 
     # restore model
     if restore:
-        _ = agent.restore(restore)        
-    else:
-        init_episode = 1
+        agent.restore(restore)        
 
     for episode in range(1, Config.total_episode+1):
         # reset env
