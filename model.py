@@ -15,9 +15,9 @@ class Model(nn.Module):
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), stride=1),
             nn.ReLU())
         self.fc1 = nn.Sequential(
-            nn.Linear(in_features=7*7*64, out_features=512),
+            nn.Linear(in_features=7*7*64, out_features=256),
             nn.ReLU())
-        self.fc2 = nn.Linear(in_features=512, out_features=action_num)
+        self.fc2 = nn.Linear(in_features=256, out_features=action_num)
     
     def forward(self, observation):
         out1 = self.conv1(observation)
@@ -34,7 +34,13 @@ class Model(nn.Module):
             'state_dict': self.state_dict(),
             'optimizer': optimizer.state_dict()
         }, path)
-        print('=> Save {}' .format(path))
             
-            
+    def load(self, checkpoint_path, optimizer=None):
+        checkpoint = torch.load(checkpoint_path)
+        step = checkpoint['step']
+        self.load_state_dict(checkpoint['state_dict'])
+        if optimizer is not None:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+        
+        return step            
         

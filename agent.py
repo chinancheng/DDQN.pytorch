@@ -26,9 +26,9 @@ class Agent:
         self.target_network.load_state_dict(self.Q_network.state_dict())
     
     def update_Q_network(self, state, action, reward, state_new, terminal):
-        state = torch.from_numpy(state).float()
+        state = torch.from_numpy(state).float()/255.0
         action = torch.from_numpy(action).float()
-        state_new = torch.from_numpy(state_new).float()
+        state_new = torch.from_numpy(state_new).float()/255.0
         terminal = torch.from_numpy(terminal).float()
         reward = torch.from_numpy(reward).float()
         state = Variable(state).cuda()
@@ -36,12 +36,10 @@ class Agent:
         state_new = Variable(state_new).cuda()
         terminal = Variable(terminal).cuda()
         reward = Variable(reward).cuda()
-        
-        # calculate y 
         self.Q_network.eval()
         self.target_network.eval()
         
-        # use current network to evaluate action argmax Q_current(s', a')_
+        # use current network to evaluate action argmax_a' Q_current(s', a')_
         action_new = self.Q_network.forward(state_new).max(dim=1)[1].cpu().data.view(-1, 1)
         action_new_onehot = torch.zeros(Config.batch_size, self.action_number)
         action_new_onehot = Variable(action_new_onehot.scatter_(1, action_new, 1.0)).cuda()
@@ -54,6 +52,7 @@ class Agent:
         Q = (self.Q_network.forward(state)*action).sum(dim=1)
         loss = mse_loss(input=Q, target=y.detach())
         
+        # backward optimize
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -69,13 +68,13 @@ class Agent:
         
         # with epsilon prob to choose random action else choose argmax Q estimate action
         if random.random() < self.epsilon:
-            return random.randint(0, self.action_number-1), estimate[0].data[0]
+            return random.randint(0, self.action_number-1)
         else:
-            return estimate[1].data[0], estimate[0].data[0]
+            return estimate[1].data[0]
     
     def update_epsilon(self):
         if self.epsilon > Config.min_epsilon:
-            self.epsilon = self.epsilon*Config.epsilon_discount_rate
+            self.epsilon -= Config.epsilon_discount_rate
     
     def stop_epsilon(self):
         self.epsilon_tmp = self.epsilon        
@@ -84,13 +83,24 @@ class Agent:
     def restore_epsilon(self):
         self.epsilon = self.epsilon_tmp        
     
-    def save_model(self, episode, reward, logs_path):
+    def save(self, episode, reward, logs_path):
+        # Store best reward model
         if reward > self.best_reward:
             os.makedirs(logs_path, exist_ok=True)
             for li in glob.glob(os.path.join(logs_path, '*.pth')):
                 os.remove(li)
-            model_path = os.path.join(logs_path, 'model-{}.pth' .format(episode))
-            self.Q_network.save(model_path, step=episode, optimizer=self.optimizer)
-            self.best_reward = reward 
+            logs_path = os.path.join(logs_path, 'model-{}.pth' .format(episode))
+            self.Q_network.save(logs_path, step=episode, optimizer=self.optimizer)
+            self.best_reward = reward
+            print('=> Save {}' .format(logs_path)) 
 
+    def restore(self, logs_path):
+        episode = self.Q_network.load(logs_path)
+        _ = self.target_network.load(logs_path)
+        print('=> Restore {}' .format(logs_path)) 
+        
+        return episode
+
+        
+    
 
