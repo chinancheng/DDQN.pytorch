@@ -3,7 +3,7 @@ DDQN inplementation on PLE FlappyBird environment in PyTorch.
   
 <img src='./assets/DDQN.gif'>  
   
-**DDQN** is proposed to solve the overestimation issue of Deep Q Learning (DQN). Apply separate target network to choose action, reducing the correlation of action selection and value evaluation.
+**DDQN** is proposed to solve the overestimation issue of Deep Q Learning (DQN). Apply separate target network to choose action, reducing the correlation of action selection and value evaluation. 
 
 ## Requirement
 * Python 3.6
@@ -11,6 +11,9 @@ DDQN inplementation on PLE FlappyBird environment in PyTorch.
 * [PLE (PyGame-Learning-Environment)](https://github.com/ntasfi/PyGame-Learning-Environment) 
 * Moviepy
 
+ ## Algorithm
+ <img src='./assets/DDQN-algo.png' width=600>  
+   
  ## Usage
  * Train 
  ```
@@ -28,4 +31,4 @@ DDQN inplementation on PLE FlappyBird environment in PyTorch.
  ## Reference
  * [Deep Reinforcement Learning with Double Q-learning](https://arxiv.org/abs/1509.06461)
  * [CS 294: Deep Reinforcement Learning](http://rll.berkeley.edu/deeprlcourse/)
-  * [DeepLearningFlappyBird](https://github.com/yenchenlin/DeepLearningFlappyBird)
+ * [DeepLearningFlappyBird](https://github.com/yenchenlin/DeepLearningFlappyBird)
