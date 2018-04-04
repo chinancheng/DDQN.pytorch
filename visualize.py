@@ -21,7 +21,7 @@ def main():
 
     avg_reward = np.cumsum(reward) / np.arange(1, len(reward) + 1)
 
-    viz = Visdom(env='main', port=8787)
+    viz = Visdom(env='main')
     viz.line(
         X=np.array(step).reshape(-1, 1).repeat(3, 1),
         Y=np.column_stack([reward, avg_reward, loss]),
