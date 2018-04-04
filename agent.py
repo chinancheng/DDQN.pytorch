@@ -13,7 +13,6 @@ class Agent:
         self.action_set = action_set
         self.action_number = len(action_set)
         self.epsilon = Config.initial_epsilon
-        self.best_reward = -100
         self.build_network()
 
     def build_network(self):
@@ -83,17 +82,16 @@ class Agent:
     def restore_epsilon(self):
         self.epsilon = self.epsilon_tmp        
     
-    def save(self, episode, reward, logs_path):
-        # Store best reward model
-        if reward > self.best_reward:
-            os.makedirs(logs_path, exist_ok=True)
-            for li in glob.glob(os.path.join(logs_path, '*.pth')):
-                os.remove(li)
-            logs_path = os.path.join(logs_path, 'model-{}.pth' .format(episode))
-            self.Q_network.save(logs_path, step=episode, optimizer=self.optimizer)
-            self.best_reward = reward
-            print('=> Save {}' .format(logs_path)) 
-
+    def save(self, step, logs_path):
+        os.makedirs(logs_path, exist_ok=True)
+        model_list =  glob.glob(os.path.join(logs_path, '*.pth'))
+        if len(model_list) > Config.maximum_model - 1 :
+            min_step = min([int(li.split('/')[-1][6:-4]) for li in model_list]) 
+            os.remove(os.path.join(logs_path, 'model-{}.pth' .format(min_step)))
+        logs_path = os.path.join(logs_path, 'model-{}.pth' .format(step))
+        self.Q_network.save(logs_path, step=step, optimizer=self.optimizer)
+        print('=> Save {}' .format(logs_path)) 
+    
     def restore(self, logs_path):
         self.Q_network.load(logs_path)
         self.target_network.load(logs_path)

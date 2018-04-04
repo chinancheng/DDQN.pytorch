@@ -53,7 +53,7 @@ def main():
 
     # restore model
     if restore:
-        agent.restore(restore)        
+        agent.restore(restore)
 
     for episode in range(1, Config.total_episode+1):
         # reset env
@@ -61,7 +61,7 @@ def main():
         env.act(0)
         obs = convert(env.getScreenGrayscale())
         state = np.stack([[obs for _ in range(4)]], axis=0)
-        t = 0
+        t_alive = 0
         total_reward = 0
         
         if episode % Config.save_video_frequency == 0 and episode > Config.initial_observe_episode: 
@@ -78,7 +78,7 @@ def main():
             state_new = np.append(state[:, 1:,...], obs, axis=1)
             action_onehot = np.zeros(len(action_set))
             action_onehot[action] = 1
-            t += 1
+            t_alive += 1
             total_reward += reward
             reply_buffer.append((state, action_onehot, reward, state_new, env.game_over()))
             state = state_new
@@ -89,12 +89,12 @@ def main():
             clip = make_video(frames, fps=60).rotate(-90)
             clip.write_videofile(os.path.join(video_path, 'env_{}.mp4'.format(episode)), fps=60)
             agent.restore_epsilon()
-            print('Episode: {} t: {} Reward: {:.3f}' .format(episode, t, total_reward))
+            print('Episode: {} t: {} Reward: {:.3f}' .format(episode, t_alive, total_reward))
   
         if episode > Config.initial_observe_episode and train:
             # save model
             if episode % Config.save_logs_frequency == 0:
-                agent.save(episode, total_reward, logs_path)
+                agent.save(episode, logs_path)
                 np.save(os.path.join(logs_path, 'loss.npy'), np.array(loss_logs))
                 np.save(os.path.join(logs_path, 'reward.npy'), np.array(reward_logs))
         
@@ -113,7 +113,7 @@ def main():
         
             # print reward and loss
             if episode % Config.show_loss_frequency == 0: 
-                print('Episode: {} t: {} Reward: {:.3f} Loss: {:.3f}' .format(episode, t, total_reward, loss))
+                print('Episode: {} t: {} Reward: {:.3f} Loss: {:.3f}' .format(episode, t_alive, total_reward, loss))
         
             agent.update_epsilon()
 

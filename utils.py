@@ -9,7 +9,10 @@ def make_video(images, fps):
     duration = len(images) / fps
 
     def make_frame(t):
-        x = images[int(len(images) / duration * t)]
+        try:
+            x = images[int(len(images) / duration * t)]
+        except:
+            x = images[-1]
         
         return x.astype(np.uint8)
     
