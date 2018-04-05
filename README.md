@@ -37,6 +37,8 @@ python visualize.py --logs_path=./logs
  
 ## Result 
 * [Full Video (with 60 FPS)](https://www.youtube.com/watch?v=GCHTadB22P8&feature=youtu.be)
+* Reward  
+<img src='./assets/reward.png' width=600>
   
 ## Reference
 * [Deep Reinforcement Learning with Double Q-learning](https://arxiv.org/abs/1509.06461)
